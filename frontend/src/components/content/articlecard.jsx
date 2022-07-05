@@ -183,7 +183,7 @@ export default function ArticleCard(props) {
                 {pub_house}
               </Grid>
 
-              <Grid item xs={4} align="right">
+              <Grid item xs={4} align="right" paddingRight="2%">
                 <button
                   onClick={handleClick}
                   className={

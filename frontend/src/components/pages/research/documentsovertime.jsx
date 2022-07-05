@@ -59,7 +59,7 @@ export default function DocumentsOverTime(props) {
         </Grid>
         {loadingstate && !startstate ?
           <Grid container>
-            <Skeleton animation="wave" style={{ minHeight: '350px', marginTop: '-12%', marginBottom: '-12%', minWidth: '100%' }} />
+            <Skeleton animation="wave" style={{ height: '800px', marginTop: '-30%', minWidth: '100%' }} />
           </Grid> :
           <Grid
             container
@@ -74,7 +74,7 @@ export default function DocumentsOverTime(props) {
               dot={false}
               loadingstate={loadingstate}
               percentagetype={percentagetype}
-			  data={multilinechartdata}
+			        data={multilinechartdata}
               width={width}
               height={height}
             />

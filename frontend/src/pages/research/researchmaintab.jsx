@@ -78,13 +78,14 @@ export default function ResearchMainTab() {
 
   const textinputstyle = {
     border: '1px solid grey',
-    padding: '3%',
+    padding: '4%',
+    textAlign: 'center',
+    textAlignVertical: "center",
     borderRadius: '3px',
     fontSize: '1vw',
-    width: 130,
-    height: 30,
+    width: 100,
+    height: 20,
     backgroundColor: 'white',
-    textAlign : 'center'
   }
 
   function handlePaginate(value, startYear, endYear) {
@@ -542,7 +543,7 @@ export default function ResearchMainTab() {
                 align="center"
                 direction="row"
                 style={{ paddingTop: '3%', paddingRight: '5%' }}>
-                <Grid item xs={5}>
+                <Grid item xs={5} >
                   <input type="number" style={textinputstyle} onChange={(e) => setStartYear(e.target.value)} value={startYear}/>
                 </Grid>
                 <Grid item xs={2} style={{ paddingLeft: '1%', paddingTop: '2%', fontSize: '1vw' }}>
@@ -576,7 +577,7 @@ export default function ResearchMainTab() {
                   align="center"
                   direction="row">
                   {loading && !startstate ?
-                    <Skeleton animation="wave" style={{ minWidth: '100%', minHeight: '500px', marginTop: '-50%' }} />
+                    <Skeleton animation="wave" style={{ minWidth: '100%', minHeight: '1200px', marginTop: '-90%' }} />
                     : <TreeView
                       defaultCollapseIcon={<ExpandMoreIcon />}
                       defaultExpandIcon={<ChevronRightIcon />}>
@@ -588,7 +589,7 @@ export default function ResearchMainTab() {
           </Grid>
           {/* Side Bar */}
           {/* Mid Section */}
-          <Grid item xs={5}>
+          <Grid item xs={6}>
             <Grid container className={researchStyles.results}>
               {loading && !startstate ?
                 <Skeleton animation="wave" style={{ minWidth: '50%' }} />
@@ -648,7 +649,7 @@ export default function ResearchMainTab() {
           </Grid>
           {/* Mid Section */}
           {/* End Section - Charting */}
-          <Grid item xs={5} style={{ paddingRight: '1%' }}>
+          <Grid item xs={4} style={{ paddingRight: '1%' }}>
             <DocumentsOverTime
               loading={loading}
               startstate={startstate}
