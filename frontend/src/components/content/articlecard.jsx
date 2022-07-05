@@ -221,7 +221,7 @@ export default function ArticleCard(props) {
                     <Grid container style={{ paddingTop: '1%', fontWeight: 'bold' }}> Abstract </Grid>
                     <Grid container style={{ paddingTop: '1%', fontWeight: 'normal', paddingLeft: '0.5%' }}> {abstract} </Grid>
                   </Grid> : <Grid container>
-                    {console.log("empty container")}
+                    {/* {console.log("empty container")} */}
                   </Grid>
                 )
               }

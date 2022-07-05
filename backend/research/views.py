@@ -26,10 +26,12 @@ def search_articles(request):
         search_query = request.query_params.get('search_query', "")
         category = request.query_params.get('category', "")
         page = request.query_params.get('page', "")
+        start_year = request.query_params.get("start_year", "")
+        end_year = request.query_params.get("end_year", "")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         payloads = generate_payloads(
-            num_articles=page, search_query=search_query, category=category)
+            num_articles=page, search_query=search_query, category=category, start=start_year, end=end_year)
         async_result = loop.run_until_complete(
             make_requests(payloads=payloads))
         loop.close()

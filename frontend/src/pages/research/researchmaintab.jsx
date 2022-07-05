@@ -1,14 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 
 import Skeleton from '@mui/material/Skeleton';
 import SearchIcon from '@mui/icons-material/Search'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { TreeItem, TreeView } from '@mui/lab'
-import { Pagination } from '@mui/material'
+import { Pagination, TextField } from '@mui/material'
 import { FormControlLabel, Checkbox, Button, Grid } from '@mui/material'
 
-import TextBox from '../../components/content/textinput'
 import ArticleCard from '../../components/content/articlecard'
 import NoDataSkeleton from '../../components/skeleton/nodataskeleton'
 import ArticleCardSkeleton from '../../components/skeleton/articlecardskeleton';
@@ -21,7 +20,7 @@ import { sortArroObjs } from '../../functions/main'
 import { numberWithCommas, tickFormatter } from '../../functions/main'
 import researchStyles from '../../styles/research.module.css'
 import Pilot from '../../static/pilot.jpeg'
-import { writeToCache, writeDataToCache, readDataFromCache, readFromCache } from './researchmaintabfiles/cacheMethods';
+import { writeToCache, writeDataToCache, readDataFromCache, readFromCache, writeGraphDataToCache, readGraphDataFromCache } from './researchmaintabfiles/cacheMethods';
 
 import { useNavigate } from 'react-router-dom';
 import VerifiedAxiosInstance from '../../components/auth/authenticatedentrypoint';
@@ -63,10 +62,12 @@ export default function ResearchMainTab() {
   const [s2loadingstate, sets2Loadingstate] = useState(false)
   const [currentpage, setCurrentpage] = useState(10)
   const [query, setQuery] = useState(query_ !== undefined ? query_ : '')
-  // For categorical filters 
-  const [selectedcategories, setSelectedcategories] = useState([]);
-
+  // For date & categorical filters 
   const currentYear = new Date().getFullYear()
+  const [selectedcategories, setSelectedcategories] = useState([]);
+  const [startYear, setStartYear] = useState(2000);
+  const [endYear, setEndYear] = useState(currentYear);
+
   // Creating ref prevent re-rendering of parent component on every chamge. Solution: https://stackoverflow.com/questions/52028418/how-can-i-get-an-inputs-value-on-a-button-click-in-a-stateless-react-component
   let textInput = React.createRef()
 
@@ -75,16 +76,27 @@ export default function ResearchMainTab() {
     navigate("/logout");
   }
 
+  const textinputstyle = {
+    border: '1px solid grey',
+    padding: '3%',
+    borderRadius: '3px',
+    fontSize: '1vw',
+    width: 130,
+    height: 30,
+    backgroundColor: 'white',
+    textAlign : 'center'
+  }
+
   function handlePaginate(value) {
     const maxpagevalue = Math.min(100, Math.max(0, Math.floor(data['num_results']['results'] / 10)))
     setCurrentpage(
       value + 10 <= maxpagevalue && value % 10 === 0 ? value + 10 : Math.floor(value / 10) * 10 + 10
-    )
-    if (value >= largestPage) {
-      setArticleloading(true)
-      setlargestPage(value)
+      )
+      if (value >= largestPage) {
+        setArticleloading(true)
+        setlargestPage(value)
       VerifiedAxiosInstance
-        .get(BASEURL + '/api/research/research/', {
+        .get(BASEURL + '/research/research/', {
           params: {
             search_query: query,
             page: value * 10
@@ -224,10 +236,13 @@ export default function ResearchMainTab() {
   } else {
     treeview = <NoDataSkeleton fontSize={'1.5vw'} />
   }
+
+
+  // Start of handleSubmit
   async function handleSubmit(propcategory = null) {
     setStartstate(false)
     setLoading(true)
-    var query = textInput.current.value
+    var query = textInput.current.value 
     setQuery(query)
 
     var start = 2000
@@ -252,19 +267,7 @@ export default function ResearchMainTab() {
       search_category +
       '&full_text=false&publisher=&jstor_discipline='
 
-      const sitecatovertime_ = 'https://backend.constellate.org/search2/?keyword=' +
-      search_query +
-      '&provider=&start=' +
-      start +
-      '&end=' +
-      end +
-      '&publication_title=&language=' +
-      _language +
-      '&doc_type=' +
-      _document_type +
-      '&category=' +
-      search_category +
-      '&full_text=false&publisher=&jstor_discipline='
+      const sitecatovertime_ = sitemetadata_
 
     const articlepreview_ = "research/research/" + query
 
@@ -274,18 +277,17 @@ export default function ResearchMainTab() {
     // just for now, set metadatacache_ to default null!
     // var metadatacache_ = cache_condition ? cached_data[sitemetadata_] : null
     var metadatacache_ = null
-    var catovertimecache_ = cache_condition ? cached_data[sitecatovertime_] : null
     var articlepreviewcache_ = cache_condition ? cached_data[articlepreview_] : null
     var lvcache = new Object() // Last viewed cache
     var writecache = new Object()
     lvcache['query'] = search_query
 
     var axios = require('axios');
-    var data_to_send = JSON.stringify({
+    var payload = JSON.stringify({
       "keyword": search_query,
       "provider": "",
-      "start": 1900,
-      "end": 2022,
+      "start": startYear,
+      "end": endYear,
       "publication_title": "",
       "language": "",
       "doc_type": "",
@@ -302,7 +304,7 @@ export default function ResearchMainTab() {
         'Authorization': process.env.REACT_APP_CONSTELLATE_ID,
         'content-type': 'application/json',
       },
-      data: data_to_send
+      data: payload
     };
 
     if ([null, undefined].includes(metadatacache_)) {
@@ -369,21 +371,25 @@ export default function ResearchMainTab() {
 
 
 
-
-
     // Categorical Graphs
-    if ([null, undefined].includes(catovertimecache_)) {
+
+    var graphKey = `${query} ${startYear} ${endYear}`
+	  var cachedGraphDataExists = readGraphDataFromCache(graphKey) ? true : false
+
+    // if ([null, undefined].includes(catovertimecache_)) { // if JSTOR API call is required (nothing in cache, or years dont match)
+    if (!cachedGraphDataExists) {
+      console.log("preparing graph data")
       sets2Loadingstate(true)
       await axios(config)
         .then(response => {
-          var cache = new Object()
+          var graphDataCache = new Object()
           // Data formatting for multi line chart
           var category_by_year = response.data['by_year']
           data['category_by_year'] = category_by_year
           // Get the data in a format ready to push into recharts
           try {
             var cleaned_data = response.data["results"]["document_years"]
-            cache['multilinechartdata'] = cleaned_data
+            graphDataCache['multilinechartdata'] = cleaned_data
             setMultilinechartdata(cleaned_data)
           } catch (err) { 
             console.log("Errored out at MultiLineChartData: " + err) 
@@ -401,29 +407,44 @@ export default function ResearchMainTab() {
               })
               subarticle_list.push(entry)
             })
-            cache['groupedbarchartdata'] = subarticle_list
+            graphDataCache['groupedbarchartdata'] = subarticle_list
             setGroupedbarchartdata(subarticle_list)
           } catch (err) { 
             console.log("Errored out at GroupedBarChartData: " + err) 
           }
-
-          setData(data)
-          cache['data'] = data
-          lvcache['main'] = cache
-          sets2Loadingstate(false)
+          // setData(data)
+          // cache['data'] = data
+          // lvcache['main'] = cache
           // Write to cache
-          writecache[sitecatovertime_] = cache
+
+          console.log("graphKey is:" + graphKey)
+          writeGraphDataToCache(graphKey, graphDataCache)
+          // writecache[sitecatovertime_] = cache
+          sets2Loadingstate(false)
         })
-    } else {
+    } else { // if JSTOR API call is not required
       sets2Loadingstate(true)
-      var cached_data = catovertimecache_
-      lvcache['main'] = cached_data
-      setMultilinechartdata(cached_data['multilinechartdata'])
-      setGroupedbarchartdata(cached_data['groupedbarchartdata'])
-      setData(cached_data['data'])
+      console.log("retrieving from cache!")
+      try {
+        var cachedGraphData = cachedGraphDataExists ? readGraphDataFromCache(graphKey) : null
+        setGroupedbarchartdata(cachedGraphData["groupedbarchartdata"])
+        setMultilinechartdata(cachedGraphData["multilinechartdata"])
+      } catch {
+        console.log("Error retrieving from cache.")
+      }
+
       sets2Loadingstate(false)
     }
     // End of Categorical Graphs
+
+
+
+
+
+
+
+
+
 
     // Call to backend
     if ([null, undefined].includes(articlepreviewcache_)) {
@@ -433,7 +454,9 @@ export default function ResearchMainTab() {
           params: {
             search_query: query,
             category: search_category,
-            page: 0
+            page: 0,
+            start_year: startYear,
+            end_year: endYear,
           }
         })
         .then(response => {
@@ -451,8 +474,11 @@ export default function ResearchMainTab() {
     // Write last viewed into cache
     writeToCache('lastviewed', lvcache)
     writeDataToCache(search_query, writecache)
+    setStartstate(true)
     setLoading(false)
   }
+
+  // End of handleSubmit
 
   const SearchBox = (
     <React.Fragment>
@@ -523,17 +549,16 @@ export default function ResearchMainTab() {
                 direction="row"
                 style={{ paddingTop: '3%', paddingRight: '5%' }}>
                 <Grid item xs={5}>
-                  <TextBox width={'80%'} valueplaceholder={2000} fontSize={'1vw'} />
+                  <input type="number" style={textinputstyle} onChange={(e) => setStartYear(e.target.value)} value={startYear}/>
                 </Grid>
-                <Grid item xs={2} style={{ paddingLeft: '1%', paddingTop: '3%', fontSize: '1vw' }}>
+                <Grid item xs={2} style={{ paddingLeft: '1%', paddingTop: '2%', fontSize: '1vw' }}>
                   {' '}
                   to{' '}
                 </Grid>
                 <Grid item xs={5}>
-                  <TextBox width={'80%'} valueplaceholder={currentYear} fontSize={'1vw'} />
+                  <input type="number" style={textinputstyle} onChange={(e) => setEndYear(e.target.value)} value={endYear}/>
                 </Grid>
               </Grid>
-
               <Grid container>
                 <Grid container style={{ paddingTop: '10%', fontSize: '1vw' }}>
                   <Grid item xs={8} style={{ marginLeft: '-6%' }}>
