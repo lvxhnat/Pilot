@@ -87,7 +87,7 @@ export default function ResearchMainTab() {
     textAlign : 'center'
   }
 
-  function handlePaginate(value) {
+  function handlePaginate(value, startYear, endYear) {
     const maxpagevalue = Math.min(100, Math.max(0, Math.floor(data['num_results']['results'] / 10)))
     setCurrentpage(
       value + 10 <= maxpagevalue && value % 10 === 0 ? value + 10 : Math.floor(value / 10) * 10 + 10
@@ -96,10 +96,13 @@ export default function ResearchMainTab() {
         setArticleloading(true)
         setlargestPage(value)
       VerifiedAxiosInstance
-        .get(BASEURL + '/research/research/', {
+        .get('/research/research/', {
           params: {
             search_query: query,
-            page: value * 10
+            category: "",
+            page: value * 10,
+            start_year: startYear,
+            end_year: endYear,
           }
         })
         .then(response => {
@@ -378,7 +381,6 @@ export default function ResearchMainTab() {
 
     // if ([null, undefined].includes(catovertimecache_)) { // if JSTOR API call is required (nothing in cache, or years dont match)
     if (!cachedGraphDataExists) {
-      console.log("preparing graph data")
       sets2Loadingstate(true)
       await axios(config)
         .then(response => {
@@ -412,19 +414,12 @@ export default function ResearchMainTab() {
           } catch (err) { 
             console.log("Errored out at GroupedBarChartData: " + err) 
           }
-          // setData(data)
-          // cache['data'] = data
-          // lvcache['main'] = cache
-          // Write to cache
-
-          console.log("graphKey is:" + graphKey)
           writeGraphDataToCache(graphKey, graphDataCache)
-          // writecache[sitecatovertime_] = cache
-          sets2Loadingstate(false)
         })
+        sets2Loadingstate(false)
     } else { // if JSTOR API call is not required
       sets2Loadingstate(true)
-      console.log("retrieving from cache!")
+      console.log("Retrieving from cache.")
       try {
         var cachedGraphData = cachedGraphDataExists ? readGraphDataFromCache(graphKey) : null
         setGroupedbarchartdata(cachedGraphData["groupedbarchartdata"])
@@ -474,7 +469,6 @@ export default function ResearchMainTab() {
     // Write last viewed into cache
     writeToCache('lastviewed', lvcache)
     writeDataToCache(search_query, writecache)
-    setStartstate(true)
     setLoading(false)
   }
 
@@ -641,7 +635,7 @@ export default function ResearchMainTab() {
                 style={{ padding: '2%', paddingTop: '5%' }}>
                 {data['num_results']['results'] <= 10 ? null :
                   <Pagination
-                    onChange={(event, value) => handlePaginate(value)}
+                    onChange={(event, value) => handlePaginate(value, startYear, endYear)}
                     size="small"
                     siblingCount={2}
                     showFirstButton={true}
