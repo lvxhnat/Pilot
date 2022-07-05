@@ -131,12 +131,14 @@ export default function ArticleCard(props) {
           <Grid container style={{ fontSize: '0.9vw', fontWeight: 'bold', color: '#595858' }}>
             <Grid item xs={10} style={{ paddingRight: '1%' }}>
               {url !== undefined && url !== '' && url !== null ? (
-                <Link
-                  to={{ pathname: url }}
+                <a
+                  href={url}
                   target="_blank"
-                  style={{ textDecoration: 'none', color: '#0645AD' }}>
+                  underline="always"
+                  style={{color: '#0645AD' }}
+                  >
                   {title}
-                </Link>
+                </a>
               ) : (
                 title
               )}
