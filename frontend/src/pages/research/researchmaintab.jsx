@@ -65,8 +65,8 @@ export default function ResearchMainTab() {
   // For date & categorical filters 
   const currentYear = new Date().getFullYear()
   const [selectedcategories, setSelectedcategories] = useState([]);
-  const [startYear, setStartYear] = useState(2000);
-  const [endYear, setEndYear] = useState(currentYear);
+  // const [startYear, setStartYear] = useState(2000);
+  // const [endYear, setEndYear] = useState(currentYear);
 
   // Creating ref prevent re-rendering of parent component on every chamge. Solution: https://stackoverflow.com/questions/52028418/how-can-i-get-an-inputs-value-on-a-button-click-in-a-stateless-react-component
   let textInput = React.createRef()
@@ -242,12 +242,18 @@ export default function ResearchMainTab() {
   }
 
 
+
+  
+
   // Start of handleSubmit
   async function handleSubmit(propcategory = null) {
     setStartstate(false)
     setLoading(true)
     var query = textInput.current.value 
     setQuery(query)
+
+    var startYear = document.getElementById("startYear").value
+    var endYear = document.getElementById("endYear").value
 
     var start = 2000
     var end = 2021
@@ -270,8 +276,6 @@ export default function ResearchMainTab() {
       '&category=' +
       search_category +
       '&full_text=false&publisher=&jstor_discipline='
-
-      const sitecatovertime_ = sitemetadata_
 
     const articlepreview_ = "research/research/" + query
 
@@ -498,7 +502,7 @@ export default function ResearchMainTab() {
       </Grid>
     </React.Fragment>
   )
-
+  
   return (
     < React.Fragment >
       <Grid container>
@@ -544,14 +548,14 @@ export default function ResearchMainTab() {
                 direction="row"
                 style={{ paddingTop: '3%', paddingRight: '5%' }}>
                 <Grid item xs={5} >
-                  <input type="number" style={textinputstyle} onChange={(e) => setStartYear(e.target.value)} value={startYear}/>
+                  <input type="number" style={textinputstyle} defaultValue="2000" id="startYear"/> 
                 </Grid>
                 <Grid item xs={2} style={{ paddingLeft: '1%', paddingTop: '2%', fontSize: '1vw' }}>
                   {' '}
                   to{' '}
                 </Grid>
                 <Grid item xs={5}>
-                  <input type="number" style={textinputstyle} onChange={(e) => setEndYear(e.target.value)} value={endYear}/>
+                  <input type="number" style={textinputstyle} defaultValue={currentYear} id="endYear"/> 
                 </Grid>
               </Grid>
               <Grid container>
@@ -636,7 +640,7 @@ export default function ResearchMainTab() {
                 style={{ padding: '2%', paddingTop: '5%' }}>
                 {data['num_results']['results'] <= 10 ? null :
                   <Pagination
-                    onChange={(event, value) => handlePaginate(value, startYear, endYear)}
+                    onChange={(event, value) => handlePaginate(value, document.getElementById("startYear"), document.getElementById("endYear"))}
                     size="small"
                     siblingCount={2}
                     showFirstButton={true}
