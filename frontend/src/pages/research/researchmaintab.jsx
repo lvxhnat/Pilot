@@ -64,11 +64,9 @@ export default function ResearchMainTab() {
   const [query, setQuery] = useState(query_ !== undefined ? query_ : '')
   // For date & categorical filters 
   const currentYear = new Date().getFullYear()
-  const [selectedcategories, setSelectedcategories] = useState([]);
-  // const [startYear, setStartYear] = useState(2000);
-  // const [endYear, setEndYear] = useState(currentYear);
+  var [selectedcategories, setSelectedcategories] = useState({});
 
-  // Creating ref prevent re-rendering of parent component on every chamge. Solution: https://stackoverflow.com/questions/52028418/how-can-i-get-an-inputs-value-on-a-button-click-in-a-stateless-react-component
+  // Creating ref prevent re-rendering of parent component on every change. Solution: https://stackoverflow.com/questions/52028418/how-can-i-get-an-inputs-value-on-a-button-click-in-a-stateless-react-component
   let textInput = React.createRef()
 
   let navigate = useNavigate();
@@ -113,6 +111,7 @@ export default function ResearchMainTab() {
           setArticlepreview(article_data.slice(value * 10, value * 10 + 10))
           setArticleloading(false)
         })
+        .catch((error) => console.log("Error at pagination:" + error))
     } else {
       // Dont repeat scrape for faster results
       setArticlepreview(scrapedarticlepreview.slice(value * 10, value * 10 + 10))
@@ -132,23 +131,53 @@ export default function ResearchMainTab() {
   }
   // Handle checking of the boxes
   function handleCheckbox(event) {
-    const value = event.target.value;
+    // console.log("inside handleCheckbox!")
+    const data = event.target.value;
+    var splitted = data.split("-")
+    // value is now a string
+    var key = splitted[0]
+    var value = splitted[1]
+    console.log("key is:" + key)
+    console.log("value is:" + value)
+
     var arr = selectedcategories
-    if (arr.includes(value)) { // uncheck
-      arr = arr.filter(el => (el !== value))
+
+    if (Object.keys(selectedcategories).includes(key)) {
+      if (selectedcategories[key].includes(value)) {
+        var newSubCategories = selectedcategories[key].filter(subCategory => (subCategory !== value)) // untick sub category
+        arr[key] = newSubCategories 
+      } else {
+        var currentSubCategories = selectedcategories[key]
+        currentSubCategories.push(value) // add sub category
+        arr[key] = currentSubCategories
+      }
+    } else {
+      if (value !== undefined) {
+        arr[key] = [value]
+      } else {
+        arr[key] = []
+      }
     }
-    else { // check the bosses
-      arr.push(value)
-    }
-    // Perform submit after state update
-    setSelectedcategories(arr);
-    handleSubmit(arr)
+
+    console.log("new arr is:" + JSON.stringify(arr))
+
+  //   if (arr.includes(key)) { // uncheck
+  //     if (arr[key])
+  //     arr = arr.filter(el => (el !== value))
+  //   }
+  //   else { // check the boxes
+  //     arr.push(value)
+  //   }
+  //   // Perform submit after state update
+  //   setSelectedcategories(arr);
+  //   handleSubmit(arr)
   }
 
   function handleClearAll() {
-    setSelectedcategories([]);
+    setSelectedcategories({});
     handleSubmit([])
   }
+
   // Pre Load components, tree view and search box
   var treeview = []
   // https://codesandbox.io/s/upbeat-visvesvaraya-lg9b8?file=/src/App.js
@@ -156,6 +185,8 @@ export default function ResearchMainTab() {
     if (data['sub_articles'].length !== 0) {
       data['sub_articles'].map((item, i) => {
         var key = Object.keys(item)[0]
+        // console.log("line 159:" + JSON.stringify(item))
+        // console.log(item[key].length)
         treeview.push(
           <TreeItem
             nodeId={i.toString()}
@@ -177,7 +208,7 @@ export default function ResearchMainTab() {
                     <Checkbox
                       onChange={handleCheckbox}
                       value={key}
-                      checked={selectedcategories.includes(key)}
+                      // checked={selectedcategories.includes(key)}
                       key={i.toString()}
                       style={{ margin: 0, padding: 0, left: 0, transform: 'scale(0.8)' }}
                     />
@@ -213,9 +244,12 @@ export default function ResearchMainTab() {
                             }}>
                             <Checkbox
                               onChange={handleCheckbox}
-                              checked={selectedcategories.includes(Object.keys(categoryobjs).find(key => categoryobjs[key].includes(item['sub'])))}
+                              // checked={selectedcategories.includes(Object.keys(categoryobjs).find(key => categoryobjs[key].includes(item['sub'])))}
                               key={i.toString() + '-' + q.toString()}
-                              value={item['sub']}
+                              // value={key: item['sub']}
+                              value={`${key}-${item["sub"]}`}
+                              // value="Only strings?"
+                              // value is main category, then sub category. Such as "History - History methodology"
                               style={{ margin: 0, padding: 0, left: 0, transform: 'scale(0.8)' }}
                             />
                           </div>
@@ -223,7 +257,7 @@ export default function ResearchMainTab() {
                         label={
                           <span style={{ fontSize: '0.8vw', verticalAlign: 'middle' }}>
                             {' '}
-                            {tickFormatter(item['sub']) + ' (' + numberWithCommas(item['n']) + ')'}
+                            {tickFormatter(item['sub']) + ' (' + numberWithCommas(item['n']) + ')'} 
                           </span>
                         }
                       />
@@ -242,9 +276,6 @@ export default function ResearchMainTab() {
   }
 
 
-
-  
-
   // Start of handleSubmit
   async function handleSubmit(propcategory = null) {
     setStartstate(false)
@@ -260,7 +291,8 @@ export default function ResearchMainTab() {
     var _document_type = 'article'
     var _language = 'English'
     var search_query = query.split(" ").join("+").toLowerCase()
-    var search_category = propcategory !== null ? propcategory.join('%7C%7C') : selectedcategories.join('%7C%7C')
+    // var search_category = propcategory !== null ? propcategory.join('%7C%7C') : selectedcategories.join('%7C%7C')
+    var search_category = ""
 
     const sitemetadata_ = 'https://backend.constellate.org/search2/?' +
       'keyword=' +
@@ -475,7 +507,13 @@ export default function ResearchMainTab() {
     writeToCache('lastviewed', lvcache)
     writeDataToCache(search_query, writecache)
     setLoading(false)
+  
+    console.log("selectedcategories is:" + JSON.stringify(selectedcategories))
+    // console.log("search_category is:" + search_category)
+  
   }
+
+
 
   // End of handleSubmit
 
@@ -502,7 +540,7 @@ export default function ResearchMainTab() {
       </Grid>
     </React.Fragment>
   )
-  
+
   return (
     < React.Fragment >
       <Grid container>
@@ -563,7 +601,7 @@ export default function ResearchMainTab() {
                   <Grid item xs={8} style={{ marginLeft: '-6%' }}>
                     Categorical Filters
                   </Grid>
-                  <Grid item xs={4}>
+                  {/* <Grid item xs={4}>
                     {selectedcategories.length !== 0 ?
                       <button
                         className={researchStyles.clearallbutton}
@@ -572,7 +610,7 @@ export default function ResearchMainTab() {
                       <button
                         className={researchStyles.disabledclearallbutton}
                         disabled> Clear All </button>}
-                  </Grid>
+                  </Grid> */}
                 </Grid>
                 <Grid
                   container
@@ -640,7 +678,7 @@ export default function ResearchMainTab() {
                 style={{ padding: '2%', paddingTop: '5%' }}>
                 {data['num_results']['results'] <= 10 ? null :
                   <Pagination
-                    onChange={(event, value) => handlePaginate(value, document.getElementById("startYear"), document.getElementById("endYear"))}
+                    onChange={(event, value) => handlePaginate(value, document.getElementById("startYear").value, document.getElementById("endYear").value)}
                     size="small"
                     siblingCount={2}
                     showFirstButton={true}
