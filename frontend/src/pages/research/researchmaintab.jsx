@@ -64,7 +64,7 @@ export default function ResearchMainTab() {
   const [query, setQuery] = useState(query_ !== undefined ? query_ : '')
   // For date & categorical filters 
   const currentYear = new Date().getFullYear()
-  var [selectedcategories, setSelectedcategories] = useState({});
+  var [selectedCategories, setSelectedCategories] = useState([]);
 
   // Creating ref prevent re-rendering of parent component on every change. Solution: https://stackoverflow.com/questions/52028418/how-can-i-get-an-inputs-value-on-a-button-click-in-a-stateless-react-component
   let textInput = React.createRef()
@@ -129,52 +129,52 @@ export default function ResearchMainTab() {
     })
     var categories = Object.keys(categoryobjs)
   }
+
   // Handle checking of the boxes
   function handleCheckbox(event) {
-    // console.log("inside handleCheckbox!")
     const data = event.target.value;
     var splitted = data.split("-")
     // value is now a string
     var key = splitted[0]
     var value = splitted[1]
     console.log("key is:" + key)
-    console.log("value is:" + value)
 
-    var arr = selectedcategories
+    var arr = selectedCategories
 
-    if (Object.keys(selectedcategories).includes(key)) {
-      if (selectedcategories[key].includes(value)) {
-        var newSubCategories = selectedcategories[key].filter(subCategory => (subCategory !== value)) // untick sub category
-        arr[key] = newSubCategories 
-      } else {
-        var currentSubCategories = selectedcategories[key]
-        currentSubCategories.push(value) // add sub category
-        arr[key] = currentSubCategories
-      }
+    if (arr.includes(key)) {
+      // if main category is ticked, untick!
+      var indexOf = arr.indexOf(key)
+      arr.splice(indexOf,1)
     } else {
-      if (value !== undefined) {
-        arr[key] = [value]
-      } else {
-        arr[key] = []
-      }
+      //if main category is unticked, tick!
+      arr.push(key)
     }
 
-    console.log("new arr is:" + JSON.stringify(arr))
+    setSelectedCategories(arr)
+    handleSubmit(arr)
+    console.log("selected categories is now:" + selectedCategories)
 
-  //   if (arr.includes(key)) { // uncheck
-  //     if (arr[key])
-  //     arr = arr.filter(el => (el !== value))
-  //   }
-  //   else { // check the boxes
-  //     arr.push(value)
-  //   }
-  //   // Perform submit after state update
-  //   setSelectedcategories(arr);
-  //   handleSubmit(arr)
+    // if (Object.keys(selectedCategories).includes(key)) {
+    //   if (selectedCategories[key].includes(value)) {
+    //     var newSubCategories = selectedCategories[key].filter(subCategory => (subCategory !== value)) // untick sub category
+    //     arr[key] = newSubCategories 
+    //   } else {
+    //     var currentSubCategories = selectedCategories[key]
+    //     currentSubCategories.push(value) // add sub category
+    //     arr[key] = currentSubCategories
+    //   }
+    // } else {
+    //   if (value !== undefined) {
+    //     arr[key] = [value]
+    //   } else {
+    //     arr[key] = []
+    //   }
+    // }
+
   }
 
   function handleClearAll() {
-    setSelectedcategories({});
+    setSelectedCategories([]);
     handleSubmit([])
   }
 
@@ -207,8 +207,8 @@ export default function ResearchMainTab() {
                     }}>
                     <Checkbox
                       onChange={handleCheckbox}
-                      value={key}
-                      // checked={selectedcategories.includes(key)}
+                      value={key ? key : ""}
+                      checked={selectedCategories.includes(key)}
                       key={i.toString()}
                       style={{ margin: 0, padding: 0, left: 0, transform: 'scale(0.8)' }}
                     />
@@ -244,7 +244,7 @@ export default function ResearchMainTab() {
                             }}>
                             <Checkbox
                               onChange={handleCheckbox}
-                              // checked={selectedcategories.includes(Object.keys(categoryobjs).find(key => categoryobjs[key].includes(item['sub'])))}
+                              // checked={selectedCategories.includes(Object.keys(categoryobjs).find(key => categoryobjs[key].includes(item['sub'])))}
                               key={i.toString() + '-' + q.toString()}
                               // value={key: item['sub']}
                               value={`${key}-${item["sub"]}`}
@@ -291,8 +291,7 @@ export default function ResearchMainTab() {
     var _document_type = 'article'
     var _language = 'English'
     var search_query = query.split(" ").join("+").toLowerCase()
-    // var search_category = propcategory !== null ? propcategory.join('%7C%7C') : selectedcategories.join('%7C%7C')
-    var search_category = ""
+    var search_category = propcategory !== null ? propcategory.join('%7C%7C') : selectedCategories.join('%7C%7C')
 
     const sitemetadata_ = 'https://backend.constellate.org/search2/?' +
       'keyword=' +
@@ -508,7 +507,7 @@ export default function ResearchMainTab() {
     writeDataToCache(search_query, writecache)
     setLoading(false)
   
-    console.log("selectedcategories is:" + JSON.stringify(selectedcategories))
+    console.log("selectedCategories is:" + JSON.stringify(selectedCategories))
     // console.log("search_category is:" + search_category)
   
   }
@@ -602,7 +601,7 @@ export default function ResearchMainTab() {
                     Categorical Filters
                   </Grid>
                   {/* <Grid item xs={4}>
-                    {selectedcategories.length !== 0 ?
+                    {selectedCategories.length !== 0 ?
                       <button
                         className={researchStyles.clearallbutton}
                         onClick={handleClearAll}
