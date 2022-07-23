@@ -32,7 +32,7 @@ export default function CategoricalBreakdown(props) {
         </Grid>
         {loadingstate ?
           <Grid container>
-            <Skeleton animation="wave" style={{ minHeight: '350px', minWidth: '100%', marginTop: '-12%' }} />
+            <Skeleton animation="wave" style={{ minHeight: '900px', minWidth: '100%', marginTop: '-30%' }} />
           </Grid>
           :
           <Grid

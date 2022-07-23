@@ -1,14 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 
 import Skeleton from '@mui/material/Skeleton';
 import SearchIcon from '@mui/icons-material/Search'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { TreeItem, TreeView } from '@mui/lab'
-import { Pagination } from '@mui/material'
+import { Pagination, TextField } from '@mui/material'
 import { FormControlLabel, Checkbox, Button, Grid } from '@mui/material'
 
-import TextBox from '../../components/content/textinput'
 import ArticleCard from '../../components/content/articlecard'
 import NoDataSkeleton from '../../components/skeleton/nodataskeleton'
 import ArticleCardSkeleton from '../../components/skeleton/articlecardskeleton';
@@ -21,7 +20,7 @@ import { sortArroObjs } from '../../functions/main'
 import { numberWithCommas, tickFormatter } from '../../functions/main'
 import researchStyles from '../../styles/research.module.css'
 import Pilot from '../../static/pilot.jpeg'
-import { writeToCache, writeDataToCache, readDataFromCache, readFromCache } from './researchmaintabfiles/cacheMethods';
+import { writeToCache, writeDataToCache, readDataFromCache, readFromCache, writeGraphDataToCache, readGraphDataFromCache } from './researchmaintabfiles/cacheMethods';
 
 import { useNavigate } from 'react-router-dom';
 import VerifiedAxiosInstance from '../../components/auth/authenticatedentrypoint';
@@ -63,11 +62,11 @@ export default function ResearchMainTab() {
   const [s2loadingstate, sets2Loadingstate] = useState(false)
   const [currentpage, setCurrentpage] = useState(10)
   const [query, setQuery] = useState(query_ !== undefined ? query_ : '')
-  // For categorical filters 
-  const [selectedcategories, setSelectedcategories] = useState([]);
-
+  // For date & categorical filters 
   const currentYear = new Date().getFullYear()
-  // Creating ref prevent re-rendering of parent component on every chamge. Solution: https://stackoverflow.com/questions/52028418/how-can-i-get-an-inputs-value-on-a-button-click-in-a-stateless-react-component
+  var [selectedCategories, setSelectedCategories] = useState([]);
+
+  // Creating ref prevent re-rendering of parent component on every change. Solution: https://stackoverflow.com/questions/52028418/how-can-i-get-an-inputs-value-on-a-button-click-in-a-stateless-react-component
   let textInput = React.createRef()
 
   let navigate = useNavigate();
@@ -75,19 +74,34 @@ export default function ResearchMainTab() {
     navigate("/logout");
   }
 
-  function handlePaginate(value) {
+  const textinputstyle = {
+    border: '1px solid grey',
+    padding: '4%',
+    textAlign: 'center',
+    textAlignVertical: "center",
+    borderRadius: '3px',
+    fontSize: '1vw',
+    width: 100,
+    height: 20,
+    backgroundColor: 'white',
+  }
+
+  function handlePaginate(value, startYear, endYear) {
     const maxpagevalue = Math.min(100, Math.max(0, Math.floor(data['num_results']['results'] / 10)))
     setCurrentpage(
       value + 10 <= maxpagevalue && value % 10 === 0 ? value + 10 : Math.floor(value / 10) * 10 + 10
-    )
-    if (value >= largestPage) {
-      setArticleloading(true)
-      setlargestPage(value)
+      )
+      if (value >= largestPage) {
+        setArticleloading(true)
+        setlargestPage(value)
       VerifiedAxiosInstance
-        .get(BASEURL + '/api/research/research/', {
+        .get('/research/research/', {
           params: {
             search_query: query,
-            page: value * 10
+            category: "",
+            page: value * 10,
+            start_year: startYear,
+            end_year: endYear,
           }
         })
         .then(response => {
@@ -97,6 +111,7 @@ export default function ResearchMainTab() {
           setArticlepreview(article_data.slice(value * 10, value * 10 + 10))
           setArticleloading(false)
         })
+        .catch((error) => console.log("Error at pagination:" + error))
     } else {
       // Dont repeat scrape for faster results
       setArticlepreview(scrapedarticlepreview.slice(value * 10, value * 10 + 10))
@@ -114,25 +129,55 @@ export default function ResearchMainTab() {
     })
     var categories = Object.keys(categoryobjs)
   }
+
   // Handle checking of the boxes
   function handleCheckbox(event) {
-    const value = event.target.value;
-    var arr = selectedcategories
-    if (arr.includes(value)) { // uncheck
-      arr = arr.filter(el => (el !== value))
+    const data = event.target.value;
+    var splitted = data.split("-")
+    // value is now a string
+    var key = splitted[0]
+    var value = splitted[1]
+    console.log("key is:" + key)
+
+    var arr = selectedCategories
+
+    if (arr.includes(key)) {
+      // if main category is ticked, untick!
+      var indexOf = arr.indexOf(key)
+      arr.splice(indexOf,1)
+    } else {
+      //if main category is unticked, tick!
+      arr.push(key)
     }
-    else { // check the bosses
-      arr.push(value)
-    }
-    // Perform submit after state update
-    setSelectedcategories(arr);
+
+    setSelectedCategories(arr)
     handleSubmit(arr)
+    console.log("selected categories is now:" + selectedCategories)
+
+    // if (Object.keys(selectedCategories).includes(key)) {
+    //   if (selectedCategories[key].includes(value)) {
+    //     var newSubCategories = selectedCategories[key].filter(subCategory => (subCategory !== value)) // untick sub category
+    //     arr[key] = newSubCategories 
+    //   } else {
+    //     var currentSubCategories = selectedCategories[key]
+    //     currentSubCategories.push(value) // add sub category
+    //     arr[key] = currentSubCategories
+    //   }
+    // } else {
+    //   if (value !== undefined) {
+    //     arr[key] = [value]
+    //   } else {
+    //     arr[key] = []
+    //   }
+    // }
+
   }
 
   function handleClearAll() {
-    setSelectedcategories([]);
+    setSelectedCategories([]);
     handleSubmit([])
   }
+
   // Pre Load components, tree view and search box
   var treeview = []
   // https://codesandbox.io/s/upbeat-visvesvaraya-lg9b8?file=/src/App.js
@@ -140,6 +185,8 @@ export default function ResearchMainTab() {
     if (data['sub_articles'].length !== 0) {
       data['sub_articles'].map((item, i) => {
         var key = Object.keys(item)[0]
+        // console.log("line 159:" + JSON.stringify(item))
+        // console.log(item[key].length)
         treeview.push(
           <TreeItem
             nodeId={i.toString()}
@@ -160,8 +207,8 @@ export default function ResearchMainTab() {
                     }}>
                     <Checkbox
                       onChange={handleCheckbox}
-                      value={key}
-                      checked={selectedcategories.includes(key)}
+                      value={key ? key : ""}
+                      checked={selectedCategories.includes(key)}
                       key={i.toString()}
                       style={{ margin: 0, padding: 0, left: 0, transform: 'scale(0.8)' }}
                     />
@@ -197,9 +244,12 @@ export default function ResearchMainTab() {
                             }}>
                             <Checkbox
                               onChange={handleCheckbox}
-                              checked={selectedcategories.includes(Object.keys(categoryobjs).find(key => categoryobjs[key].includes(item['sub'])))}
+                              // checked={selectedCategories.includes(Object.keys(categoryobjs).find(key => categoryobjs[key].includes(item['sub'])))}
                               key={i.toString() + '-' + q.toString()}
-                              value={item['sub']}
+                              // value={key: item['sub']}
+                              value={`${key}-${item["sub"]}`}
+                              // value="Only strings?"
+                              // value is main category, then sub category. Such as "History - History methodology"
                               style={{ margin: 0, padding: 0, left: 0, transform: 'scale(0.8)' }}
                             />
                           </div>
@@ -207,7 +257,7 @@ export default function ResearchMainTab() {
                         label={
                           <span style={{ fontSize: '0.8vw', verticalAlign: 'middle' }}>
                             {' '}
-                            {tickFormatter(item['sub']) + ' (' + numberWithCommas(item['n']) + ')'}
+                            {tickFormatter(item['sub']) + ' (' + numberWithCommas(item['n']) + ')'} 
                           </span>
                         }
                       />
@@ -224,35 +274,27 @@ export default function ResearchMainTab() {
   } else {
     treeview = <NoDataSkeleton fontSize={'1.5vw'} />
   }
+
+
+  // Start of handleSubmit
   async function handleSubmit(propcategory = null) {
     setStartstate(false)
     setLoading(true)
-    var query = textInput.current.value
+    var query = textInput.current.value 
     setQuery(query)
+
+    var startYear = document.getElementById("startYear").value
+    var endYear = document.getElementById("endYear").value
 
     var start = 2000
     var end = 2021
     var _document_type = 'article'
     var _language = 'English'
     var search_query = query.split(" ").join("+").toLowerCase()
-    var search_category = propcategory !== null ? propcategory.join('%7C%7C') : selectedcategories.join('%7C%7C')
+    var search_category = propcategory !== null ? propcategory.join('%7C%7C') : selectedCategories.join('%7C%7C')
 
     const sitemetadata_ = 'https://backend.constellate.org/search2/?' +
       'keyword=' +
-      search_query +
-      '&provider=&start=' +
-      start +
-      '&end=' +
-      end +
-      '&publication_title=&language=' +
-      _language +
-      '&doc_type=' +
-      _document_type +
-      '&category=' +
-      search_category +
-      '&full_text=false&publisher=&jstor_discipline='
-
-      const sitecatovertime_ = 'https://backend.constellate.org/search2/?keyword=' +
       search_query +
       '&provider=&start=' +
       start +
@@ -274,18 +316,17 @@ export default function ResearchMainTab() {
     // just for now, set metadatacache_ to default null!
     // var metadatacache_ = cache_condition ? cached_data[sitemetadata_] : null
     var metadatacache_ = null
-    var catovertimecache_ = cache_condition ? cached_data[sitecatovertime_] : null
     var articlepreviewcache_ = cache_condition ? cached_data[articlepreview_] : null
     var lvcache = new Object() // Last viewed cache
     var writecache = new Object()
     lvcache['query'] = search_query
 
     var axios = require('axios');
-    var data_to_send = JSON.stringify({
+    var payload = JSON.stringify({
       "keyword": search_query,
       "provider": "",
-      "start": 1900,
-      "end": 2022,
+      "start": startYear,
+      "end": endYear,
       "publication_title": "",
       "language": "",
       "doc_type": "",
@@ -302,7 +343,7 @@ export default function ResearchMainTab() {
         'Authorization': process.env.REACT_APP_CONSTELLATE_ID,
         'content-type': 'application/json',
       },
-      data: data_to_send
+      data: payload
     };
 
     if ([null, undefined].includes(metadatacache_)) {
@@ -369,21 +410,24 @@ export default function ResearchMainTab() {
 
 
 
-
-
     // Categorical Graphs
-    if ([null, undefined].includes(catovertimecache_)) {
+
+    var graphKey = `${query} ${startYear} ${endYear}`
+	  var cachedGraphDataExists = readGraphDataFromCache(graphKey) ? true : false
+
+    // if ([null, undefined].includes(catovertimecache_)) { // if JSTOR API call is required (nothing in cache, or years dont match)
+    if (!cachedGraphDataExists) {
       sets2Loadingstate(true)
       await axios(config)
         .then(response => {
-          var cache = new Object()
+          var graphDataCache = new Object()
           // Data formatting for multi line chart
           var category_by_year = response.data['by_year']
           data['category_by_year'] = category_by_year
           // Get the data in a format ready to push into recharts
           try {
             var cleaned_data = response.data["results"]["document_years"]
-            cache['multilinechartdata'] = cleaned_data
+            graphDataCache['multilinechartdata'] = cleaned_data
             setMultilinechartdata(cleaned_data)
           } catch (err) { 
             console.log("Errored out at MultiLineChartData: " + err) 
@@ -401,29 +445,37 @@ export default function ResearchMainTab() {
               })
               subarticle_list.push(entry)
             })
-            cache['groupedbarchartdata'] = subarticle_list
+            graphDataCache['groupedbarchartdata'] = subarticle_list
             setGroupedbarchartdata(subarticle_list)
           } catch (err) { 
             console.log("Errored out at GroupedBarChartData: " + err) 
           }
-
-          setData(data)
-          cache['data'] = data
-          lvcache['main'] = cache
-          sets2Loadingstate(false)
-          // Write to cache
-          writecache[sitecatovertime_] = cache
+          writeGraphDataToCache(graphKey, graphDataCache)
         })
-    } else {
+        sets2Loadingstate(false)
+    } else { // if JSTOR API call is not required
       sets2Loadingstate(true)
-      var cached_data = catovertimecache_
-      lvcache['main'] = cached_data
-      setMultilinechartdata(cached_data['multilinechartdata'])
-      setGroupedbarchartdata(cached_data['groupedbarchartdata'])
-      setData(cached_data['data'])
+      console.log("Retrieving from cache.")
+      try {
+        var cachedGraphData = cachedGraphDataExists ? readGraphDataFromCache(graphKey) : null
+        setGroupedbarchartdata(cachedGraphData["groupedbarchartdata"])
+        setMultilinechartdata(cachedGraphData["multilinechartdata"])
+      } catch {
+        console.log("Error retrieving from cache.")
+      }
+
       sets2Loadingstate(false)
     }
     // End of Categorical Graphs
+
+
+
+
+
+
+
+
+
 
     // Call to backend
     if ([null, undefined].includes(articlepreviewcache_)) {
@@ -433,7 +485,9 @@ export default function ResearchMainTab() {
           params: {
             search_query: query,
             category: search_category,
-            page: 0
+            page: 0,
+            start_year: startYear,
+            end_year: endYear,
           }
         })
         .then(response => {
@@ -452,7 +506,15 @@ export default function ResearchMainTab() {
     writeToCache('lastviewed', lvcache)
     writeDataToCache(search_query, writecache)
     setLoading(false)
+  
+    console.log("selectedCategories is:" + JSON.stringify(selectedCategories))
+    // console.log("search_category is:" + search_category)
+  
   }
+
+
+
+  // End of handleSubmit
 
   const SearchBox = (
     <React.Fragment>
@@ -522,25 +584,24 @@ export default function ResearchMainTab() {
                 align="center"
                 direction="row"
                 style={{ paddingTop: '3%', paddingRight: '5%' }}>
-                <Grid item xs={5}>
-                  <TextBox width={'80%'} valueplaceholder={2000} fontSize={'1vw'} />
+                <Grid item xs={5} >
+                  <input type="number" style={textinputstyle} defaultValue="2000" id="startYear"/> 
                 </Grid>
-                <Grid item xs={2} style={{ paddingLeft: '1%', paddingTop: '3%', fontSize: '1vw' }}>
+                <Grid item xs={2} style={{ paddingLeft: '1%', paddingTop: '2%', fontSize: '1vw' }}>
                   {' '}
                   to{' '}
                 </Grid>
                 <Grid item xs={5}>
-                  <TextBox width={'80%'} valueplaceholder={currentYear} fontSize={'1vw'} />
+                  <input type="number" style={textinputstyle} defaultValue={currentYear} id="endYear"/> 
                 </Grid>
               </Grid>
-
               <Grid container>
                 <Grid container style={{ paddingTop: '10%', fontSize: '1vw' }}>
                   <Grid item xs={8} style={{ marginLeft: '-6%' }}>
                     Categorical Filters
                   </Grid>
-                  <Grid item xs={4}>
-                    {selectedcategories.length !== 0 ?
+                  {/* <Grid item xs={4}>
+                    {selectedCategories.length !== 0 ?
                       <button
                         className={researchStyles.clearallbutton}
                         onClick={handleClearAll}
@@ -548,7 +609,7 @@ export default function ResearchMainTab() {
                       <button
                         className={researchStyles.disabledclearallbutton}
                         disabled> Clear All </button>}
-                  </Grid>
+                  </Grid> */}
                 </Grid>
                 <Grid
                   container
@@ -557,7 +618,7 @@ export default function ResearchMainTab() {
                   align="center"
                   direction="row">
                   {loading && !startstate ?
-                    <Skeleton animation="wave" style={{ minWidth: '100%', minHeight: '500px', marginTop: '-50%' }} />
+                    <Skeleton animation="wave" style={{ minWidth: '100%', minHeight: '1200px', marginTop: '-90%' }} />
                     : <TreeView
                       defaultCollapseIcon={<ExpandMoreIcon />}
                       defaultExpandIcon={<ChevronRightIcon />}>
@@ -569,7 +630,7 @@ export default function ResearchMainTab() {
           </Grid>
           {/* Side Bar */}
           {/* Mid Section */}
-          <Grid item xs={5}>
+          <Grid item xs={6}>
             <Grid container className={researchStyles.results}>
               {loading && !startstate ?
                 <Skeleton animation="wave" style={{ minWidth: '50%' }} />
@@ -616,7 +677,7 @@ export default function ResearchMainTab() {
                 style={{ padding: '2%', paddingTop: '5%' }}>
                 {data['num_results']['results'] <= 10 ? null :
                   <Pagination
-                    onChange={(event, value) => handlePaginate(value)}
+                    onChange={(event, value) => handlePaginate(value, document.getElementById("startYear").value, document.getElementById("endYear").value)}
                     size="small"
                     siblingCount={2}
                     showFirstButton={true}
@@ -629,7 +690,7 @@ export default function ResearchMainTab() {
           </Grid>
           {/* Mid Section */}
           {/* End Section - Charting */}
-          <Grid item xs={5} style={{ paddingRight: '1%' }}>
+          <Grid item xs={4} style={{ paddingRight: '1%' }}>
             <DocumentsOverTime
               loading={loading}
               startstate={startstate}
